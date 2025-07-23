@@ -1,20 +1,14 @@
-# Use Node.js 16 slim as the base image
-FROM node:16
-
-# Set the working directory
+# Build stage
+FROM node:18-alpine AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json to the working directory
-COPY . .
-
-# Install dependencies
+COPY package*.json ./
 RUN npm install
-
-# Build the React app
+COPY . .
 RUN npm run build
 
-# Expose port 3000 (or the port your app is configured to listen on)
-EXPOSE 3000
-
-# Start your Node.js server (assuming it serves the React app)
-CMD ["npm", "start"]
+# Production stage
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
