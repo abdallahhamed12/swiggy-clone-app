@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+    tools {
+        jdk "JDK17"
+        nodejs "nodejs"
+    }
+ 
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage("Checkout from Git") {
+            steps {
+                git branch: 'main', url: 'https://github.com/abdallahhamed12/swiggy-clone-app.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'npm test -- --passWithNoTests'
+            }
+        }
+        stage('trivy fs scan'){
+            steps{
+                sh " trivy fs . > trivyfs.txt "
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                script {
+                    // Build with cache from previous layers
+                    docker.build("abdallahhamed/swiggy-app:latest")
+                }
+            }
+        }
+        
+       stage('Push to Docker Hub') {
+            steps {
+                script {
+                   withDockerRegistry(credentialsId: 'docker-hub-credentials', toolName: 'docker' ){
+                       sh "docker push abdallahhamed/swiggy-app:latest"
+                   }
+                }
+            }
+    }     
+    }
+}
+  
+
