@@ -29,30 +29,29 @@ pipeline {
                 sh 'npm test -- --passWithNoTests'
             }
         }
-        stage('trivy fs scan'){
-            steps{
-                sh " trivy fs . > trivyfs.txt "
-            }
-        }
         stage('Docker Build') {
             steps {
                 script {
                     // Build with cache from previous layers
-                    docker.build("abdallahhamed/swiggy-app:latest")
+                    docker.build("abdallahhamed/my-app-swiggy:latest")
                 }
             }
         }
         
-       stage('Push to Docker Hub') {
+        stage("Trivy scan image") {
+            steps {
+                sh "trivy image abdallahhamed/my-app-swiggy:latest > trivyimage.txt"
+            }
+        }
+        
+        stage('Push to Docker Hub') {
             steps {
                 script {
-                   withDockerRegistry(credentialsId: 'docker-hub-credentials', toolName: 'docker' ){
-                       sh "docker push abdallahhamed/swiggy-app:latest"
+                   withDockerRegistry(credentialsId: 'docker-hub-credentials', toolName: 'docker') {
+                       sh "docker push abdallahhamed/my-app-swiggy:latest"
                    }
                 }
             }
-    }     
+        }     
     }
 }
-  
-
