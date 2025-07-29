@@ -1,17 +1,90 @@
 pipeline {
     agent any
 
-    stages {
+   stages {
         stage('Deploy to Kubernetes') {
             steps {
-                script{
-                    withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]){
-                        sh "kubectl create deploy swiggy-app --image=abdallahhamed/swiggy-app:latest"
-                        sh "kubectl expose deploy swiggy-app --port=80 --type=NodePort "
+                script {
+                    withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                        sh "kubectl create deploy swiggy-app --image=abdallahhamed/my-app-swiggy:latest "  // || true to handle case when deployment already exists
+                        sh "kubectl expose deploy swiggy-app --port=80 --type=NodePort --dry-run=client -o yaml | kubectl apply -f -"
+                    }
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    // Get Minikube IP
+                    def minikubeIp = sh(script: "minikube ip", returnStdout: true).trim()
+                    
+                    // Get NodePort
+                    def nodePort = sh(script: "kubectl get svc swiggy-app -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
+                    
+                    // Test service reachability
+                    def reachable = false
+                    def attempts = 0
+                    def maxAttempts = 10
+                    
+                    while (!reachable && attempts < maxAttempts) {
+                        attempts++
+                        try {
+                            def curlOutput = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://${minikubeIp}:${nodePort} || true", returnStdout: true).trim()
+                            if (curlOutput == "200") {
+                                reachable = true
+                                echo "Service is reachable at http://${minikubeIp}:${nodePort}"
+                            } else {
+                                echo "Attempt ${attempts}: Service not reachable yet (HTTP code: ${curlOutput})"
+                                sleep 10
+                            }
+                        } catch (Exception e) {
+                            echo "Attempt ${attempts}: Error testing service reachability: ${e}"
+                            sleep 10
+                        }
+                    }
+                    
+                    if (!reachable) {
+                        error("Service verification failed after ${maxAttempts} attempts")
                     }
                 }
             }
         }
     }
-}
 
+    post {
+        always {
+            echo "=== Deployment Process Completed ==="
+        }
+        success {
+            script {
+                def minikubeIp = sh(script: "minikube ip", returnStdout: true).trim()
+                def nodePort = sh(script: "kubectl get svc swiggy-app -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
+                def serviceUrl = "http://${minikubeIp}:${nodePort}"
+                
+                echo """
+                ===== DEPLOYMENT SUCCESSFUL =====
+                Service deployed successfully to Minikube!
+                Access your application at: ${serviceUrl}
+                Build: ${env.JOB_NAME} #${env.BUILD_NUMBER}
+                """
+            }
+        }
+        failure {
+            script {
+                echo """
+                ===== DEPLOYMENT FAILED =====
+                Failed to deploy application to Minikube!
+                Build: ${env.JOB_NAME} #${env.BUILD_NUMBER}
+                Jenkins logs: ${env.BUILD_URL}
+                
+                Performing cleanup...
+                """
+                
+                // Cleanup resources
+                sh "kubectl delete deploy swiggy-app || true"
+                sh "kubectl delete svc swiggy-app || true"
+            }
+        }
+    }
+}
