@@ -1,3 +1,4 @@
+// Make the users array accessible for testing
 const users = [];
 
 function createUser(userData) {
@@ -19,4 +20,5 @@ function findUserById(id) {
   return users.find(user => user.id === id);
 }
 
-module.exports = { createUser, findUserById };
+// Export both functions AND the users array
+module.exports = { createUser, findUserById, users };
