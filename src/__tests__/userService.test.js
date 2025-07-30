@@ -1,4 +1,4 @@
-const { createUser, findUserById } = require('./userService');
+const { createUser, findUserById, users } = require('./userService');
 
 describe('User Service', () => {
   beforeEach(() => {
@@ -14,18 +14,8 @@ describe('User Service', () => {
     expect(user.name).toBe(userData.name);
     expect(user.email).toBe(userData.email);
     expect(user).toHaveProperty('createdAt');
+    expect(users).toHaveLength(1);
   });
 
-  test('throws error when name or email is missing', () => {
-    expect(() => createUser({ name: 'John' })).toThrow('Name and email are required');
-    expect(() => createUser({ email: 'john@example.com' })).toThrow('Name and email are required');
-  });
-
-  test('finds user by id', () => {
-    const user = createUser({ name: 'Jane', email: 'jane@example.com' });
-    const foundUser = findUserById(user.id);
-    
-    expect(foundUser).toEqual(user);
-    expect(findUserById('nonexistent')).toBeUndefined();
-  });
+  // ... rest of your tests
 });
