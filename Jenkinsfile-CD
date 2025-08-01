@@ -7,7 +7,7 @@ pipeline {
                 script {
                     withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
                         sh "kubectl create deploy swiggy-app --image=abdallahhamed/my-app-swiggy:latest "  // || true to handle case when deployment already exists
-                        sh "kubectl expose deploy swiggy-app --port=80 --type=NodePort --dry-run=client -o yaml | kubectl apply -f -"
+                        sh "kubectl expose deploy swiggy-app --port=8081 --target-port=80  --type=NodePort --dry-run=client -o yaml | kubectl apply -f -"
                     }
                 }
             }
